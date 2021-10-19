@@ -5,7 +5,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/ozonmp/omp-bot/internal/app/path"
 	"log"
-	"math"
 )
 
 type CallbackListData struct {
@@ -63,13 +62,17 @@ func (c *ServiceReviewCommander) List(inputMsg *tgbotapi.Message) {
 
 func (c *ServiceReviewCommander) CallbackList(callback *tgbotapi.CallbackQuery, callbackPath path.CallbackPath) {
 	parsedData := CallbackListData{}
-	json.Unmarshal([]byte(callbackPath.CallbackData), &parsedData)
+	err := json.Unmarshal([]byte(callbackPath.CallbackData), &parsedData)
+	if err != nil {
+		log.Printf("fail to get callback json")
+		return
+	}
 	cursor, limit := parsedData.Cursor, parsedData.Limit
 
 	outputMsgText, err := c.GetList(cursor+limit, limit)
 
 	if err != nil {
-		log.Printf("fail to get list of reviews with idx %d: %v", cursor, err)
+		log.Printf("fail to get list of reviews with idx %d and limit %d: %v", cursor, limit, err)
 		return
 	}
 	serializedDataNext, err := json.Marshal(CallbackListData{
@@ -81,7 +84,7 @@ func (c *ServiceReviewCommander) CallbackList(callback *tgbotapi.CallbackQuery, 
 		return
 	}
 	serializedDataBack, err := json.Marshal(CallbackListData{
-		Cursor: int(math.Min(0, float64(cursor)-float64(limit))),
+		Cursor: cursor - limit,
 		Limit:  limit,
 	})
 
@@ -104,6 +107,8 @@ func (c *ServiceReviewCommander) CallbackList(callback *tgbotapi.CallbackQuery, 
 		CallbackData: string(serializedDataBack),
 	}
 
+	delMsg := tgbotapi.NewDeleteMessage(callback.Message.Chat.ID, callback.Message.MessageID)
+
 	msg := tgbotapi.NewMessage(callback.Message.Chat.ID, outputMsgText)
 
 	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -113,4 +118,6 @@ func (c *ServiceReviewCommander) CallbackList(callback *tgbotapi.CallbackQuery, 
 		),
 	)
 	c.bot.Send(msg)
+
+	c.bot.Send(delMsg)
 }

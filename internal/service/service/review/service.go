@@ -44,7 +44,7 @@ func (s *DummyReviewService) Create(review service.Review) (uint64, error) {
 }
 
 func (s *DummyReviewService) Update(reviewID uint64, review service.Review) error {
-	return nil
+	return errors.New("Not implemented")
 }
 
 func (s *DummyReviewService) Remove(reviewID uint64) (bool, error) {
